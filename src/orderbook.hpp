@@ -22,6 +22,8 @@
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/composite_key.hpp>
+#include <boost/range/iterator_range.hpp>
 #include <ostream>
 #include <algorithm>
 #include <iterator>
@@ -48,6 +50,7 @@ struct Order{
 struct idTag{};
 struct tickerTag{};
 struct priceTag{};
+struct tickerPriceTag{};
 
 /* Define a multi_index_container of Order with following indices:
  *   - a unique index sorted by Order::id,
@@ -65,7 +68,12 @@ typedef boost::multi_index::multi_index_container<
                 boost::multi_index::ordered_non_unique<
                         boost::multi_index::tag<tickerTag>, BOOST_MULTI_INDEX_MEMBER(Order,std::string,ticker)>,
                 boost::multi_index::ordered_non_unique<
-                        boost::multi_index::tag<priceTag>, BOOST_MULTI_INDEX_MEMBER(Order,double,price_)>
+                        boost::multi_index::tag<priceTag>, BOOST_MULTI_INDEX_MEMBER(Order,double,price_)>,
+                boost::multi_index::ordered_non_unique<
+                        boost::multi_index::tag<tickerPriceTag>, boost::multi_index::composite_key<Order,
+                                BOOST_MULTI_INDEX_MEMBER(Order,std::string,ticker),
+                                BOOST_MULTI_INDEX_MEMBER(Order,double,price_)>
+                                >
         >
 > OrderSet;
 
@@ -75,6 +83,18 @@ auto getOrdersInContainerByTag(const MultiIndexContainer& s)
     /* obtain a reference to the index tagged by Tag */
     const typename boost::multi_index::index<MultiIndexContainer,Tag>::type& i = boost::multi_index::get<Tag>(s);
     return std::pair{i.begin(),i.end()};
+}
+
+double getMinPriceForTickerIn(std::string const& ticker, OrderSet const& o){
+    auto range = o.get<tickerPriceTag>().equal_range(ticker);
+    if (boost::empty(range))return 0.;
+    return(boost::begin(boost::make_iterator_range(range)))->price_;
+}
+
+double getMaxPriceForTickerIn(std::string const& ticker, OrderSet const& o){
+    auto range = o.get<tickerPriceTag>().equal_range(ticker);
+    if (boost::empty(range))return 0.;
+    return(boost::rbegin(boost::make_iterator_range(range)))->price_;
 }
 
 struct UpdateSize{
@@ -169,15 +189,19 @@ private:
         ask.modify(iter, UpdateSize(md->getSize()));
     };
     void cancel(boost::shared_ptr<MarketData> const& md){ // O(1)
-        OrderSet *target{nullptr};
-        target = (md->getSide()==MarketData::Side::ask)?&ask:&bid;
-        auto &id_index = target->get<0>();
+        auto &id_index = ask.get<0>();
         auto iter = id_index.find(md->getOrderId());
-        target->erase(iter);
+        if (iter==ask.end()){ // not in ask
+            auto &bid_id_index = bid.get<0>();
+            iter = bid_id_index.find(md->getOrderId());
+            bid.erase(iter);
+            return;
+        }
+        ask.erase(iter);
     };
 
 public:
-
+    bool empty(){ return (ask.empty()&&bid.empty());}
     void processOrder(boost::shared_ptr<MarketData> const& md){
         if(!md->isProcessable())return; // discard corrupted order
         switch (md->getAction()) {
@@ -210,7 +234,8 @@ public:
         }
         return getOrdersInContainerByTag<OrderSet,idTag>(*target).first->size_;
     }
-//    boost::tuple<double, double> getBestBidAndAsk(std::string const& ticker){
-//        return {0,0};
-//    }
+
+    boost::tuple<double, double> getBestAskAndBid(std::string const& ticker){
+        return {getMinPriceForTickerIn(ticker, ask), getMaxPriceForTickerIn(ticker, bid)};
+    }
 };
