@@ -1,0 +1,3 @@
+add_executable (Boost_Tests_run
+test_oreder_data.cpp)
+target_link_libraries (Boost_Tests_run boost_unit_test_framework boost_chrono)
