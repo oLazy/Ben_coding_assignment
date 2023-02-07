@@ -29,8 +29,12 @@
 struct Order{
     std::string id;
     std::string ticker;
-    double price_;
-    std::uint32_t size_;
+    double price_{0.};
+    std::uint32_t size_{0};
+
+    Order() = default;
+    Order(const std::string &id, const std::string &ticker, double price, uint32_t size) : id(id), ticker(ticker),
+                                                                                           price_(price), size_(size) {}
 
     friend std::ostream &operator<<(std::ostream &os, const Order &order) {
         os << "id: " << order.id << " ticker: " << order.ticker << " price_: " << order.price_ << " size_: "
@@ -39,6 +43,12 @@ struct Order{
     }
 };
 
+/* tags for accessing the corresponding indices of OrderSet */
+
+struct idTag{};
+struct tickerTag{};
+struct priceTag{};
+
 /* Define a multi_index_container of Order with following indices:
  *   - a unique index sorted by Order::id,
  *   - a non-unique index sorted by Order::ticker,
@@ -46,23 +56,35 @@ struct Order{
  *   size_ doesn't need to be indexed, as is at most removed/updated via Order::id handler
  */
 
-/* tags for accessing the corresponding indices of employee_set */
-
-struct id{};
-struct ticker{};
-struct price_{};
 
 typedef boost::multi_index::multi_index_container<
         Order,
         boost::multi_index::indexed_by<
                 boost::multi_index::ordered_unique<
-                        boost::multi_index::tag<id>, BOOST_MULTI_INDEX_MEMBER(Order,std::string,id)>,
+                        boost::multi_index::tag<idTag>, BOOST_MULTI_INDEX_MEMBER(Order,std::string,id)>,
                 boost::multi_index::ordered_non_unique<
-                        boost::multi_index::tag<ticker>, BOOST_MULTI_INDEX_MEMBER(Order,std::string,ticker)>,
+                        boost::multi_index::tag<tickerTag>, BOOST_MULTI_INDEX_MEMBER(Order,std::string,ticker)>,
                 boost::multi_index::ordered_non_unique<
-                        boost::multi_index::tag<price_>, BOOST_MULTI_INDEX_MEMBER(Order,double,price_)>
-                >
-        > OrderSet;
+                        boost::multi_index::tag<priceTag>, BOOST_MULTI_INDEX_MEMBER(Order,double,price_)>
+        >
+> OrderSet;
+
+template<typename MultiIndexContainer, typename Tag>
+auto getOrdersInContainerByTag(const MultiIndexContainer& s)
+{
+    /* obtain a reference to the index tagged by Tag */
+    const typename boost::multi_index::index<MultiIndexContainer,Tag>::type& i = boost::multi_index::get<Tag>(s);
+    return std::pair{i.begin(),i.end()};
+}
+
+struct UpdateSize{
+    explicit UpdateSize(std::uint32_t new_size):new_size_(new_size){}
+    void operator()(Order& o){
+        o.size_ = new_size_;
+    }
+private:
+    std::uint32_t new_size_{0};
+};
 
 class OrderBook{
     typedef std::string ticker;
@@ -89,7 +111,7 @@ private:
     void add(boost::shared_ptr<MarketData> const& md){ // adding order assumes an orderId not in book yet
         if(md->getSide()==MarketData::Side::bid){
             p_idAskBid[md->getOrderId()] = MarketData::Side::bid;
-            bid[md->getOrderId()] = {md->getOrderId(), md->getTicker(), md->getPrice(), md->getSize()};
+            bid[md->getOrderId()] = Order(md->getOrderId(), md->getTicker(), md->getPrice(), md->getSize());
         }
         else {
             p_idAskBid[md->getOrderId()] = MarketData::Side::ask;
@@ -136,11 +158,15 @@ private:
     void update(boost::shared_ptr<MarketData> const& md){ // O(1)
         OrderSet *target{nullptr};
         target = &ask;
-        auto &id_index = target->get<0>();
+        auto &id_index = ask.get<0>();
         auto iter = id_index.find(md->getOrderId());
-
-        if(iter==target->end()) target->modify(iter, [&md](Order &o){o.size_ = md->getSize();}):target=&bid;
-
+        if(iter==ask.end()){ // not in ask!;
+            auto &bid_id_index = bid.get<0>();
+            iter = bid_id_index.find(md->getOrderId());
+            bid.modify(iter, UpdateSize(md->getSize()));
+            return;
+        }
+        ask.modify(iter, UpdateSize(md->getSize()));
     };
     void cancel(boost::shared_ptr<MarketData> const& md){ // O(1)
         OrderSet *target{nullptr};
@@ -151,6 +177,7 @@ private:
     };
 
 public:
+
     void processOrder(boost::shared_ptr<MarketData> const& md){
         if(!md->isProcessable())return; // discard corrupted order
         switch (md->getAction()) {
@@ -169,20 +196,20 @@ public:
         OrderSet *target = &ask;
         auto &id_index = target->get<0>();
         auto iter = id_index.find(id);
-        if (iter != target->end()) { // found!
-            return iter->price_;
-        } else { // search in bid
-            target=&bid;
-            id_index = target->get<0>();
-            iter = id_index.find(id);
-            if (iter != target->end()){ // found!
-                return iter->price_;
-            }
+        if (iter == target->end()) { // not in ask!
+            target = &bid;
         }
-        // not in book, return -1
-        return -1;
+        return getOrdersInContainerByTag<OrderSet,idTag>(*target).first->price_;
     }
-//    double getSizeFor(std::string const& id){}
+    std::uint32_t getSizeFor(std::string const& id){
+        OrderSet *target = &ask;
+        auto &id_index = target->get<0>();
+        auto iter = id_index.find(id);
+        if (iter == target->end()) { // not in ask!
+            target = &bid;
+        }
+        return getOrdersInContainerByTag<OrderSet,idTag>(*target).first->size_;
+    }
 //    boost::tuple<double, double> getBestBidAndAsk(std::string const& ticker){
 //        return {0,0};
 //    }

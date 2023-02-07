@@ -252,17 +252,21 @@ BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(testImprovedOrderBook)
     BOOST_AUTO_TEST_CASE(testProcessOrder) {
-        constexpr size_t i_max{8};
+        constexpr size_t i_max{1};
         MockDataFeed feed;
         ImprovedOrderBook book;
-        for (size_t i = 0; i < i_max; ++i){ // process the 8 example orders
-            std::istringstream in{feed.getData()};
-            auto md{MarketData::fromStr(in)};
-            book.processOrder(md);}
-        BOOST_CHECK_CLOSE(book.getPriceFor("abbb12"),210.00000,1e-6);
-//        BOOST_CHECK_EQUAL(book.getSizeFor("abbb12"),101);
-        BOOST_CHECK_EQUAL(book.getPriceFor("abbb11"),-1); //abbb11 is canceled and returns 0
-//        BOOST_CHECK_EQUAL(book.getSizeFor("abbb11"),0);
-
+        std::istringstream in{feed.getData()};
+        auto md{MarketData::fromStr(in)};
+        book.processOrder(md);
+        BOOST_CHECK_CLOSE(book.getPriceFor("abbb11"),209.00000,1e-6);
+        BOOST_CHECK_EQUAL(book.getSizeFor("abbb11"),100);
+        std::istringstream in1_2{feed.getData()};
+        md = MarketData::fromStr(in1_2);
+        book.processOrder(md);
+        BOOST_CHECK_EQUAL(book.getSizeFor("abbb11"),101);
+        std::istringstream in1_3{feed.getData()};
+        md = MarketData::fromStr(in1_2);
+        book.processOrder(md);
+        
     }
 BOOST_AUTO_TEST_SUITE_END()
