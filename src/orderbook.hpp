@@ -113,9 +113,8 @@ private:
         target = (md->getSide()==MarketData::Side::ask)?&ask:&bid;
         target->insert({md->getOrderId(), md->getTicker(), md->getPrice(), md->getSize()});
     };
+
     void update(boost::shared_ptr<MarketData> const& md){ // O(1)
-        OrderSet *target{nullptr};
-        target = &ask;
         auto &id_index = ask.get<0>();
         auto iter = id_index.find(md->getOrderId());
         if(iter==ask.end()){ // not in ask!;
@@ -126,6 +125,7 @@ private:
         }
         ask.modify(iter, UpdateSize(md->getSize()));
     };
+
     void cancel(boost::shared_ptr<MarketData> const& md){ // O(1)
         auto &id_index = ask.get<0>();
         auto iter = id_index.find(md->getOrderId());
@@ -154,9 +154,11 @@ public:
                 break;
         }
     }
+
     boost::tuple<double, double> getBestAskAndBid(std::string const& ticker) {
         return {getMinPriceForTickerIn(ticker, ask), getMaxPriceForTickerIn(ticker, bid)};
     }
+
     // some utility interface, for testing
     double getPriceFor(std::string const& id) {
         OrderSet *target = &ask;
@@ -167,6 +169,7 @@ public:
         }
         return getOrdersInContainerByTag<OrderSet,idTag>(*target).first->price_;
     }
+
     std::uint32_t getSizeFor(std::string const& id){
         OrderSet *target = &ask;
         auto &id_index = target->get<0>();
