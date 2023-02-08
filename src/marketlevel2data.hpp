@@ -15,6 +15,7 @@
 //Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.#ifndef JIT_MARKETLEVEL2DATA_HPP
 
 #include <string>
+#include <strstream>
 #include <boost/make_shared.hpp>
 #pragma once
 
@@ -29,7 +30,7 @@ public:
      * @param in input stream
      * @return a shared poionter to MarketData
      */
-    static boost::shared_ptr<MarketData> fromStr(std::istringstream & in){
+    static boost::shared_ptr<MarketData> fromStr(std::istream & in){
 
         auto result = boost::make_shared<MarketData>(MarketData());
         enum position{start=0, timestamp=0, orderid=1, action=2, other=3, ticker=3, side=4, price=5, size=6, end=7};
