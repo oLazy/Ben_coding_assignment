@@ -17,8 +17,6 @@
 #pragma once
 
 #include <marketlevel2data.hpp>
-#include <map>
-#include <set>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/member.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -97,7 +95,7 @@ double getMaxPriceForTickerIn(std::string const& ticker, OrderSet const& o){
     return(boost::rbegin(boost::make_iterator_range(range)))->price_;
 }
 
-struct UpdateSize{
+struct UpdateSize{ // utility function to update unidexed field in the order_set
     explicit UpdateSize(std::uint32_t new_size):new_size_(new_size){}
     void operator()(Order& o){
         o.size_ = new_size_;
@@ -107,69 +105,9 @@ private:
 };
 
 class OrderBook{
-    typedef std::string ticker;
-    typedef std::string orederId;
-public:
-    void processOrder(boost::shared_ptr<MarketData> const& md){
-        if(!md->isProcessable())return; // discard corrupted order
-        switch (md->getAction()) {
-            case MarketData::Action::add:
-                add(md);
-                break;
-            case MarketData::Action::update:
-                update(md);
-                break;
-            case MarketData::Action::cancel:
-                cancel(md);
-                break;
-        }
-    }
-private:
-    std::map<orederId , MarketData::Side> p_idAskBid;
-    std::unordered_map<orederId ,Order> bid, ask;
-
-    void add(boost::shared_ptr<MarketData> const& md){ // adding order assumes an orderId not in book yet
-        if(md->getSide()==MarketData::Side::bid){
-            p_idAskBid[md->getOrderId()] = MarketData::Side::bid;
-            bid[md->getOrderId()] = Order(md->getOrderId(), md->getTicker(), md->getPrice(), md->getSize());
-        }
-        else {
-            p_idAskBid[md->getOrderId()] = MarketData::Side::ask;
-            ask[md->getOrderId()] = {md->getOrderId(), md->getTicker(), md->getPrice(), md->getSize()};
-
-        }
-    }
-    void update(boost::shared_ptr<MarketData> const& md){
-        if(p_idAskBid[md->getOrderId()] == MarketData::Side::bid) {
-            bid[md->getOrderId()].size_ = md->getSize();
-        }
-        else {
-            ask[md->getOrderId()].size_ = md->getSize();
-        }
-    }
-    void cancel(boost::shared_ptr<MarketData> const& md) {
-        if (p_idAskBid[md->getOrderId()] == MarketData::Side::bid) {
-            bid.erase(md->getOrderId());
-        } else {
-            ask.erase(md->getOrderId());
-        }
-        p_idAskBid.erase(md->getOrderId());
-    }
-public:
-    double getPriceFor(std::string const& id){
-        if(p_idAskBid.find(id) == p_idAskBid.end())return 0;
-        if (p_idAskBid.at(id) == MarketData::Side::bid) return bid.at(id).price_;
-        else return ask.at(id).price_;}
-    uint32_t getSizeFor(std::string const& id) const{
-        if(p_idAskBid.find(id) == p_idAskBid.end())return 0;
-        if (p_idAskBid.at(id) == MarketData::Side::bid) return bid.at(id).size_;
-        else return ask.at(id).size_;
-    }
-};
-
-class ImprovedOrderBook{
 private:
     OrderSet ask, bid;
+
     void add(boost::shared_ptr<MarketData> const& md){ // O(log(n))
         OrderSet *target{nullptr};
         target = (md->getSide()==MarketData::Side::ask)?&ask:&bid;
@@ -216,6 +154,10 @@ public:
                 break;
         }
     }
+    boost::tuple<double, double> getBestAskAndBid(std::string const& ticker) {
+        return {getMinPriceForTickerIn(ticker, ask), getMaxPriceForTickerIn(ticker, bid)};
+    }
+    // some utility interface, for testing
     double getPriceFor(std::string const& id) {
         OrderSet *target = &ask;
         auto &id_index = target->get<0>();
@@ -234,8 +176,4 @@ public:
         }
         return getOrdersInContainerByTag<OrderSet,idTag>(*target).first->size_;
     }
-
-    boost::tuple<double, double> getBestAskAndBid(std::string const& ticker){
-        return {getMinPriceForTickerIn(ticker, ask), getMaxPriceForTickerIn(ticker, bid)};
-    }
-};
+    };

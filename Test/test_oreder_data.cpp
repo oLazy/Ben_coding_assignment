@@ -56,63 +56,10 @@ BOOST_AUTO_TEST_SUITE(testMarketData)
 BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE(testOrderBook)
-    BOOST_AUTO_TEST_CASE(testProcessOrder)
-    {
-        constexpr size_t i_max{1000000};
-        MockDataFeed feed;
-        OrderBook book;
-
-        auto t1 = boost::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < i_max; ++i){ // process the 8 example orders
-            std::istringstream in{feed.getData()};
-            auto md{MarketData::fromStr(in)};
-            book.processOrder(md);}// after this I do expect the only live order is abbb12, I test it is updated
-        auto t2 = boost::chrono::high_resolution_clock::now();
-        auto execution_time = (boost::chrono::duration_cast<boost::chrono::milliseconds>(t2-t1));
-        std::cout << "cycle to process " << i_max << " orders took " << execution_time
-                  << ".\n";
-        BOOST_CHECK_CLOSE(book.getPriceFor("abbb12"),210.00000,1e-6);
-        BOOST_CHECK_EQUAL(book.getSizeFor("abbb12"),101);
-        BOOST_CHECK_EQUAL(book.getPriceFor("abbb11"),0); //abbb11 is canceled and returns 0
-        BOOST_CHECK_EQUAL(book.getSizeFor("abbb11"),0);
-
-        // generate a random queue of i_max orders
-        std::vector<std::string> order_pool;
-        for (size_t i = 0; i< i_max; i++){
-            auto ostr = feed.generateData();
-            order_pool.push_back(ostr);
-        }
-        std::cout << "Max bid pool size: " << feed.maxBidSize() << "\n";
-        std::cout << "Max ask pool size: " << feed.maxAskSize() << "\n";
-        // time the process for a random order set. This test is more reliable as the data structure will grow with time
-        auto t3 = boost::chrono::high_resolution_clock::now();
-        for (size_t i = 0; i < i_max; ++i){
-            std::istringstream in{order_pool[i]};
-            auto md{MarketData::fromStr(in)};
-            book.processOrder(md);
-        }
-        auto t4 = boost::chrono::high_resolution_clock::now();
-        execution_time = (boost::chrono::duration_cast<boost::chrono::milliseconds>(t4-t3));
-        std::cout << "cycle to process " << i_max << " random orders took " << execution_time
-                  << ".\n";
-    }
-
-    BOOST_AUTO_TEST_CASE(testGetBetterAskBid){
-        MockDataFeed feed;
-        OrderBook book;
-        for (size_t i = 0; i < 8; ++i){ // process the 8 example orders
-            std::istringstream in{feed.getData()};
-            auto md{MarketData::fromStr(in)};
-            book.processOrder(md);}// after this I do expect the only live order is abbb12, I test it is updated
-
-    }
-BOOST_AUTO_TEST_SUITE_END()
-
-BOOST_AUTO_TEST_SUITE(testImprovedOrderBook)
     BOOST_AUTO_TEST_CASE(testProcessOrder) {
         constexpr size_t i_max{8};
         MockDataFeed feed;
-        ImprovedOrderBook book;
+        OrderBook book;
         std::istringstream in{feed.getData()};
         auto md{MarketData::fromStr(in)};
         book.processOrder(md);
@@ -140,7 +87,7 @@ BOOST_AUTO_TEST_SUITE(testImprovedOrderBook)
         BOOST_CHECK_EQUAL(book.getSizeFor("abbb12"),101);
     }
     BOOST_AUTO_TEST_CASE(TestMinAndMaxPrices){
-        ImprovedOrderBook book;
+        OrderBook book;
         constexpr size_t i_max{1000000};
         MockDataFeed feed;
         std::vector<std::string> in{
