@@ -91,6 +91,7 @@ int main() {
                 }
             }
         }
+        usleep(1000*role); // pretty print
         std::cout << "[" << role << "] stopping job here.\n";
     }
     return 0;
