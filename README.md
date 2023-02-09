@@ -64,10 +64,19 @@ to build/test the program use
 
 ## What is missing? 
 A little order generator mocker is provided. The whole system works on its own. 
-As stated before, this is a dummy project. To build a working system several moving parts should be added:
-* The book should be listening to a queue system (not a data feeder).
-* getBestAskAndBid() should be run in parallel, with asyncronous io communication. 
-* The book should lock/unlock ask and bid Order_set(s) to prevent data racing. 
+As stated before, this is a dummy project. Better interface with data-feeder and IO could/should be implemented.
 
 ## What is good? 
 The system is easly mantainable/extendable. The usage of boost_multi_index containers allows for great flexibility.
+
+## System example
+In main.cpp the "library" usage is shown. With openmp it creates four threads:
+* The **interface** reads ticker name of interest from the standard input and eventually triggers the program termination
+* The **feeder** generates random (but correct in both syntax and logic) orders and add them to an order queue
+* The **bookkeeper** processes the orders from the queue FIFO
+* The **inquirer** reads user input and provides best ask and bid prices for that ticker once per second
+
+# usage
+I do use this system with two terminals.
+1. $>./jit 2>log.txt # this runs the system and accept user commands
+2. $>tail -f log.txt # this print on screen the best ask and bid prices for the ticker of interes
