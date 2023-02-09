@@ -56,6 +56,10 @@ int main() {
 #pragma omp cancellation point parallel
             }
         }
+
+        /*
+         * BOOKKEEPER
+         */
         else if(role == bookkeeper){
             while (!stop){
                 if(order_queue.empty()){
