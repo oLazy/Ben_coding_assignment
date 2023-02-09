@@ -78,7 +78,7 @@ int main() {
                               (boost::chrono::system_clock::now().time_since_epoch()).count() % 1000 == 0) ) { // every 1 second
 
                     auto values = book.getBestAskAndBid(user_input);
-                    std::cerr << user_input << "A: " << values.get<0>() << "\t" << "B: " << values.get<1>()
+                    std::cerr << user_input << " A: " << values.get<0>() << "\t" << "B: " << values.get<1>()
                               << std::endl;
                     usleep(1000); // sleep for one millisecond to syncronise the computations/prints
                 } else {
