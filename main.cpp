@@ -14,6 +14,8 @@ int main() {
     bool stop{false};
     OrderBook book;
     std::string user_input;
+    std::cerr.precision(5);
+    std::cerr << std::fixed;
     omp_set_num_threads(THREAD_NUM); // set number of threads in "parallel" blocks
 #pragma omp parallel default(none) shared(user_input, stop, order_queue, book, std::cout, std::cin, std::cerr)
     {
