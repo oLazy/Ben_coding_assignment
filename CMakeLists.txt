@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 project(jit)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIE -Wall -O3")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIE -Wall -O3 -fopenmp -lpthread")
 # see https://cmake.org/cmake/help/latest/module/FindBoost.html
 find_package(Boost REQUIRED unit_test_framework date_time)
 if (Boost_FOUND)
@@ -11,8 +11,12 @@ if (Boost_FOUND)
     message("INCLUDE: ${Boost_INCLUDE_DIRS}")
     message("LINK: ${Boost_LIBRARY_DIRS}")
 endif()
-
+find_package(OpenMP REQUIRED)
+if (OpenMP_FOUND)
+    message("OMP FOUND")
 include_directories(src)
+endif()
+
 include_directories(${Boost_INCLUDE_DIR})
 link_directories(${Boost_LIBRARY_DIRS})
 add_subdirectory(Test)
