@@ -14,6 +14,8 @@ The following assumptions hold:
 * the orders make sense. No cancel order can arrive for an order id that was never added. Same holds for update orders. 
 
 MOP is based on the boost libraries (http://boost.org) for testing, multi-indexed containers, timers and more. 
+MOP also uses the OpenMP library (https://www.openmp.org/) to handle the four threads that constitute the system. 
+
 ## What it does
 MOP implements the classes MarketData and OrderBook which provide the following interface.
 
