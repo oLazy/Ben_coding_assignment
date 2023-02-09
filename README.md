@@ -78,5 +78,5 @@ In main.cpp the "library" usage is shown. With openmp it creates four threads:
 
 # usage
 I do use this system with two terminals.
-1. $>./jit 2>log.txt # this runs the system and accept user commands
+1. $>./mop 2>log.txt # this runs the system and accept user commands
 2. $>tail -f log.txt # this print on screen the best ask and bid prices for the ticker of interes
